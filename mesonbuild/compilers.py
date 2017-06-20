@@ -762,6 +762,8 @@ class Compiler:
         # directory. This breaks reproducible builds.
         rel_rpaths = []
         for p in rpath_paths:
+            if not p:
+                p = build_dir
             if p == from_dir:
                 relative = '' # relpath errors out in this case
             else:
