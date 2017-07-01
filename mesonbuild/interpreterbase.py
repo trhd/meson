@@ -55,19 +55,16 @@ def stringArgs(f):
         return f(self, node, args, kwargs)
     return wrapped
 
-class permittedKwargs:
-
-    def __init__(self, permitted):
-        self.permitted = permitted
-
-    def __call__(self, f):
-        def wrapped(s, node, args, kwargs):
+def permittedKwargs(p):
+    def deco(f):
+        @wraps(f)
+        def wrapped(self, node, args, kwargs):
             for k in kwargs:
-                if k not in self.permitted:
+                if k not in p:
                     mlog.warning('Passed invalid keyword argument %s. This will become a hard error in the future.' % k)
-            return f(s, node, args, kwargs)
+            return f(self, node, args, kwargs)
         return wrapped
-
+    return deco
 
 class InterpreterException(mesonlib.MesonException):
     pass
