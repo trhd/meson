@@ -144,8 +144,6 @@ class TestResult(enum.Enum):
     TIMEOUT = 'TIMEOUT'
     SKIP = 'SKIP'
     FAIL = 'FAIL'
-    EXPECTEDFAIL = 'EXPECTEDFAIL'
-    UNEXPECTEDPASS = 'UNEXPECTEDPASS'
 
 
 class TestRun:
@@ -391,10 +389,10 @@ class SingleTestRunner:
             res = TestResult.TIMEOUT
         elif p.returncode == GNU_SKIP_RETURNCODE:
             res = TestResult.SKIP
-        elif self.test.should_fail:
-            res = TestResult.EXPECTEDFAIL if bool(p.returncode) else TestResult.UNEXPECTEDPASS
+        elif self.test.should_fail == bool(p.returncode):
+            res = TestResult.OK
         else:
-            res = TestResult.FAIL if bool(p.returncode) else TestResult.OK
+            res = TestResult.FAIL
         return TestRun(res, p.returncode, self.test.should_fail, duration, stdo, stde, cmd, self.test.env)
 
 
@@ -403,8 +401,6 @@ class TestHarness:
         self.options = options
         self.collected_logs = []
         self.fail_count = 0
-        self.expectedfail_count = 0
-        self.unexpectedpass_count = 0
         self.success_count = 0
         self.skip_count = 0
         self.timeout_count = 0
@@ -471,10 +467,6 @@ class TestHarness:
             self.success_count += 1
         elif result.res is TestResult.FAIL:
             self.fail_count += 1
-        elif result.res is TestResult.EXPECTEDFAIL:
-            self.expectedfail_count += 1
-        elif result.res is TestResult.UNEXPECTEDPASS:
-            self.unexpectedpass_count += 1
         else:
             sys.exit('Unknown test result encountered: {}'.format(result.res))
 
@@ -490,10 +482,9 @@ class TestHarness:
         result_str = '%s %s  %s%s%s%5.2f s %s' % \
             (num, name, padding1, result.res.value, padding2, result.duration,
              status)
-        ok_statuses = (TestResult.OK, TestResult.EXPECTEDFAIL)
-        if not self.options.quiet or result.res not in ok_statuses:
-            if result.res not in ok_statuses and mlog.colorize_console:
-                if result.res in (TestResult.FAIL, TestResult.TIMEOUT, TestResult.UNEXPECTEDPASS):
+        if not self.options.quiet or result.res is not TestResult.OK:
+            if result.res is not TestResult.OK and mlog.colorize_console:
+                if result.res in (TestResult.FAIL, TestResult.TIMEOUT):
                     decorator = mlog.red
                 elif result.res is TestResult.SKIP:
                     decorator = mlog.yellow
@@ -514,14 +505,11 @@ class TestHarness:
 
     def print_summary(self):
         msg = '''
-Ok:                 %4d
-Expected Fail:      %4d
-Fail:               %4d
-Unexpected Pass:    %4d
-Skipped:            %4d
-Timeout:            %4d
-''' % (self.success_count, self.expectedfail_count, self.fail_count,
-            self.unexpectedpass_count, self.skip_count, self.timeout_count)
+OK:      %4d
+FAIL:    %4d
+SKIP:    %4d
+TIMEOUT: %4d
+''' % (self.success_count, self.fail_count, self.skip_count, self.timeout_count)
         print(msg)
         if self.logfile:
             self.logfile.write(msg)
